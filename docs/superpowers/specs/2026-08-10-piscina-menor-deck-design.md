@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-10
 **Local:** Ponta da Fruta, Vila Velha — ES
-**Status:** implementado e verificado — entregue em PPTX (principal) e página web
+**Status:** implementado e verificado — PPTX, página de leitura e apresentação de palestra
 
 ---
 
@@ -282,3 +282,49 @@ Aparecem no próprio deck, não apenas aqui:
 
 - **Deck do piscinão**, mesma estrutura e mesma lista de 10, quando as fotos existirem.
 - **Alterações na lista de materiais** — o proprietário sinalizou que sugerirá trocas após revisar a primeira versão.
+
+---
+
+## 12. Revisões após a primeira entrega
+
+### A borda passou a ser assunto próprio (pedido do proprietário)
+
+A primeira versão tratava a borda como faixa secundária dentro dos slides de piso. O proprietário pediu exemplos da **borda** trocada por outros materiais, pelo menos cinco. Foram acrescentados **seis materiais de peça de borda**, com critérios próprios — aderência molhada, resistência ao cloro, possibilidade de peça sob medida — porque o que decide numa borda não é o que decide num piso:
+
+| # | Material | R$/m linear | Observação |
+|---|---|---|---|
+| 1 | Granito Branco Itaúnas | 120–190 | O padrão capixaba |
+| 2 | Granito Cinza Andorinha | 110–170 | O mais barato e o mais resistente |
+| 3 | Mármore Branco Espírito Santo | 130–210 | **Vulnerável ao cloro** — alerta em destaque |
+| 4 | Marmoglass (vidro cristalizado) | 220–340 | **Nunca polido** em borda — alerta em destaque |
+| 5 | Porcelanato peça de borda | 150–250 | Só nos modelos de fábrica |
+| 6 | Pedra Hijau | 180–280 | A melhor aderência molhada |
+
+Nas comparações de borda o **piso é mantido constante** (Granito Cinza Andorinha), para que só uma variável mude entre as imagens.
+
+### Correção: a peça de borda não cobria a lâmina de fibra
+
+Defeito de coerência da primeira versão: o corte construtivo do slide 3 mostrava a peça avançando 2–3 cm sobre a lâmina da fibra, mas **nenhuma montagem mostrava isso** — o rebordo azul continuava à mostra, com o material novo só do lado de fora. A montagem negava o próprio detalhe técnico que o deck defendia.
+
+Três causas, todas corrigidas:
+
+1. **A mistura final usava o alfa da calçada.** A faixa de borda invade a região da fibra, que está fora da máscara de calçada — então mesmo estando na máscara de borda, o alfa ali era zero e a foto original reaparecia.
+2. **A homografia do close estava errada em 226 px na ponta da aresta direita**, por ter sido estimada a olho. Substituída por regressão sobre o contorno inferior da máscara azul, que é a aresta externa da fibra: `esquerda y = 0,5877x + 193,4`, `direita y = -1,0504x + 1506,8`, canto na interseção (801,7 · 664,6).
+3. **Um filete azul-acinzentado não pertencia a nenhuma máscara** — a regra de água o excluía da calçada e a regra de piscina não o capturava. Selado com fechamento morfológico sobre a união.
+
+Tentativa descartada: detectar a fibra por cor. A casca é translúcida e reflete a água, então saturação e luminância não a separam — só o brilho especular difere. A faixa passou a ser definida geometricamente, em metros, e calibrada por conferência visual (0,22 m na panorâmica, 0,26 m no close).
+
+### Terceiro formato: apresentação de palestra
+
+`deck/palestra.html`, 26 slides. Não é a página de leitura em outro CSS — é outro formato:
+
+- Palco fixo de 1280×720 escalado por `transform`, para o enquadramento sair idêntico em qualquer projetor, sem reflow.
+- Fundo escuro, tipo grande, texto reduzido ao que se lê do fundo da sala. Tema único e deliberado: paleta tirada das próprias fotos (o ciano é a água da piscina).
+- Navegação por teclado (setas, espaço, Home/End), mapa de slides (G), tela cheia (F) e avanço por clique — este último necessário porque dentro de um quadro o teclado só recebe eventos após o primeiro clique.
+- **Cortina antes/depois** arrastável na borda: é o momento que mais comunica numa palestra.
+
+### Defeitos encontrados na verificação desta rodada
+
+- Cortina travava no primeiro passo do arrasto: `setPointerCapture` no elemento impedia os `pointermove` seguintes. Ouvintes movidos para a janela.
+- Dois slides transbordavam o palco (735 px e 795 px contra 720): proporções trocadas por alturas explícitas.
+- Salvamento do PPTX falhava com o arquivo aberto no PowerPoint. O gerador agora grava ao lado com sufixo em vez de perder a geração.

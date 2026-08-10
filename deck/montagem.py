@@ -120,16 +120,18 @@ def cantos_piscina(mask):
 PISCINA = (6.0, 3.0)
 
 # No close a piscina aparece so parcialmente, entao a homografia nao pode
-# ser derivada dos 4 cantos. Foi estimada por iteracao visual: o canto da
-# piscina e as duas arestas visiveis dao tres pontos, e o quarto foi
-# ajustado ate a paginacao renderizada acompanhar as juntas reais da
-# Sao Tome que ja estao na foto.
-CLOSE_A = (800, 658)      # canto externo da fibra
-CLOSE_B = (95, 262)       # sobre a aresta de 6 m
-CLOSE_C = (1400, 262)     # sobre a aresta de 3 m
-CLOSE_D = (770, -30)      # fecha o retangulo, com convergencia
-CLOSE_AB_M = 3.3          # metros visiveis ate B
-CLOSE_AC_M = 2.9          # metros visiveis ate C
+# ser derivada dos 4 cantos como na panoramica.
+# A, B e C vem de regressao sobre o
+# contorno inferior da mascara azul, que e a aresta externa da fibra.
+# A estimativa manual anterior errava a aresta direita em 226 px na ponta,
+# e a faixa de borda saia deslocada desse lado.
+#   esquerda: y = 0,5877x + 193,4     direita: y = -1,0504x + 1506,8
+CLOSE_A = (801.7, 664.6)  # interseccao das duas arestas = canto externo
+CLOSE_B = (95.0, 249.3)   # sobre a aresta de 6 m
+CLOSE_C = (1300.0, 141.3) # sobre a aresta de 3 m
+CLOSE_D = (593.3, -274.0) # fecha o retangulo; ajustado por conferencia visual
+CLOSE_AB_M = 2.8          # metros ate B (escala calibrada pela paginacao)
+CLOSE_AC_M = 2.5          # metros ate C
 
 CENAS = {
     "pano": {
@@ -138,6 +140,9 @@ CENAS = {
         "borda_m": 0.35,
         # A calcada e uma ilha cercada de grama: vale segmentar por cor.
         "modo_mascara": "cor",
+        # Faixa da lamina de fibra a ser capeada pela peca de borda,
+        # calibrada por conferencia visual ate o rebordo azul sumir.
+        "lamina_m": 0.22,
         # As placas antigas sao pequenas em pixels; sigma menor ja as apaga.
         "sigma_luz": 18.0,
         "faixa_luz": (0.45, 1.32),
@@ -149,6 +154,7 @@ CENAS = {
         # Aqui a calcada ocupa o quadro inteiro; o robusto e recortar a
         # piscina e ficar com todo o resto.
         "modo_mascara": "complemento",
+        "lamina_m": 0.26,
         # Placas antigas enormes em pixels: sem sigma alto, as juntas e
         # manchas viram borroes escuros no material novo.
         "sigma_luz": 75.0,
@@ -164,8 +170,10 @@ def monta_cena(nome):
 
     if cfg["modo_mascara"] == "cor":
         calcada = mask_calcada(rgb, cfg["y_min"])
+        azul = mask_piscina(rgb, cfg["y_min"])
     else:
-        calcada = ~mask_azul(rgb, cfg["y_min"])
+        azul = mask_azul(rgb, cfg["y_min"])
+        calcada = ~azul
 
     if nome == "pano":
         pool = mask_piscina(rgb, cfg["y_min"])
@@ -194,11 +202,29 @@ def monta_cena(nome):
     dy = np.maximum(np.maximum(-V, 0), V - W)
     # Chebyshev, nao euclidiana: a peca de borda e cortada em meia-esquadria
     # e o canto externo sai vivo. Com hypot o canto sairia arredondado.
-    dist = np.maximum(dx, dy)
-    # Coordenada ao longo do perimetro, para as juntas das pecas de borda.
-    ao_longo = np.where(dx > dy, V, U)
+    fora = np.maximum(dx, dy)
 
-    borda = calcada & (dist < cfg["borda_m"])
+    # Profundidade para dentro do retangulo. O retangulo foi ajustado a
+    # aresta externa da fibra, entao esta faixa interna e a lamina de fibra
+    # -- a peca de borda tem de cobri-la, senao o rebordo azul continua
+    # aparecendo e a montagem nega o proprio corte construtivo.
+    dentro = np.maximum(np.minimum(np.minimum(U, L - U),
+                                   np.minimum(V, W - V)), 0)
+    d_sinal = fora - dentro                  # positivo fora, negativo dentro
+
+    # Coordenada ao longo do perimetro, valida dos dois lados da aresta.
+    perto_u = np.minimum(np.abs(U), np.abs(U - L))
+    perto_v = np.minimum(np.abs(V), np.abs(V - W))
+    ao_longo = np.where(perto_u < perto_v, V, U)
+
+    lamina = cfg["lamina_m"]
+    faixa = (d_sinal > -lamina) & (d_sinal < cfg["borda_m"])
+    # Entre a calcada e a agua sobra um filete azul-acinzentado que a regra
+    # de agua exclui da calcada e a regra de piscina nao captura. Fechar a
+    # uniao sela essa fresta; sem isso ela fica sem pintar e o rebordo da
+    # fibra reaparece como um fio azul contornando a peca de borda.
+    regiao = ndimage.binary_closing(calcada | azul, np.ones((17, 17)))
+    borda = faixa & regiao
     piso = calcada & ~borda
 
     return {
@@ -209,9 +235,10 @@ def monta_cena(nome):
         "borda": borda,
         "U": U,
         "V": V,
-        "dist": dist,
+        "d_sinal": d_sinal,
         "ao_longo": ao_longo,
         "borda_m": cfg["borda_m"],
+        "lamina_m": lamina,
         "sigma_luz": cfg["sigma_luz"],
         "faixa_luz": cfg["faixa_luz"],
     }
@@ -306,9 +333,10 @@ def textura(mat, U, V, semente=0):
 
 def textura_borda(mat, cena, semente=3):
     """Pecas de borda: juntas transversais ao longo do perimetro."""
-    d = cena["dist"]
+    # d = 0 na lamina d'agua, crescendo para fora da piscina.
+    d = cena["d_sinal"] + cena["lamina_m"]
     s = cena["ao_longo"]
-    largura = cena["borda_m"]
+    largura = cena["lamina_m"] + cena["borda_m"]
     junta = mat["junta_mm"] / 1000.0
     passo = 0.50                        # peca de 50 cm
 
@@ -373,12 +401,37 @@ def compoe(cena, mat_piso, mat_borda):
                     tex_borda * luz_borda[..., None],
                     tex_piso * luz_piso[..., None])
 
-    # Borda suavizada da mascara, para nao serrilhar contra a grama.
-    alpha = ndimage.gaussian_filter(cena["calcada"].astype(float), 0.9)[..., None]
+    # Uniao com a borda, nao so a calcada: a faixa de borda invade a lamina
+    # de fibra, que esta fora da mascara de calcada. Usar so a calcada aqui
+    # deixa o rebordo azul reaparecer por baixo da peca.
+    pintado = cena["calcada"] | cena["borda"]
+    # Suavizada para nao serrilhar contra a grama e contra a agua.
+    alpha = ndimage.gaussian_filter(pintado.astype(float), 0.9)[..., None]
     saida = saida * (1 - alpha) + np.clip(novo, 0, 255) * alpha
     return np.clip(saida, 0, 255).astype(np.uint8)
 
 
-def carrega_materiais(rel="deck/materiais.json"):
+def _dados(rel="deck/materiais.json"):
     with open(caminho(rel), encoding="utf-8") as f:
-        return json.load(f)["materiais"]
+        return json.load(f)
+
+
+def carrega_materiais(rel="deck/materiais.json"):
+    """Materiais de piso."""
+    return _dados(rel)["materiais"]
+
+
+def carrega_bordas(rel="deck/materiais.json"):
+    """Materiais da peca de borda. Lista separada porque os criterios sao
+    outros: o que importa numa borda e aderencia molhada, resistencia ao
+    cloro e possibilidade de peca sob medida, nao a area de piso."""
+    bordas = _dados(rel)["bordas"]
+    for b in bordas:
+        # A peca de borda nao tem paginacao propria a declarar: a junta
+        # transversal a cada 50 cm ja vem de textura_borda. Estes valores
+        # so completam o que a funcao de textura espera.
+        b.setdefault("placa_m", [0.50, 0.30])
+        b.setdefault("junta_mm", 3)
+        b.setdefault("cor_junta",
+                     [int(c * 0.80) for c in b["cor_base"]])
+    return bordas

@@ -249,6 +249,35 @@ def main():
         dados.append({"id": m["id"], "nome": m["nome"],
                       "preco": f'{m["preco_m2"][0]}–{m["preco_m2"][1]}'})
 
+    # Secao da borda. Criterios proprios: numa peca de borda o que decide e
+    # aderencia molhada, resistencia ao cloro e possibilidade de peca sob
+    # medida -- nao os mesmos criterios de um piso.
+    crit_borda = [("aderencia", "Antiderrapante"), ("termico", "Não esquenta"),
+                  ("cloro", "Resiste ao cloro"),
+                  ("sob_medida", "Peça sob medida"), ("custo", "Custo baixo")]
+    bordas_html = ""
+    for b in M.carrega_bordas():
+        aviso = (f'<div class="aviso" style="margin-top:12px">▲ {e(b["alerta"])}'
+                 f'</div>' if b["alerta"] else "")
+        crits = "".join(
+            f'<div class="crit"><span>{e(rot)}</span>{pips(b["criterios"][k])}'
+            f'</div>' for k, rot in crit_borda)
+        bordas_html += f"""<div class="cartao">
+          <img src="{b64(f'borda_{b["id"]}.jpg', 620)}" alt="{e(b['nome'])}"
+               style="border-radius:5px;margin-bottom:12px" loading="lazy">
+          <h3 style="font-family:Georgia,serif;font-size:18px">
+            {b['n']}. {e(b['nome'])}</h3>
+          <p style="margin:4px 0 10px;color:var(--acento);font-weight:600">
+            R$ {b['preco_ml'][0]}–{b['preco_ml'][1]} / m linear</p>
+          <p style="margin:0 0 12px;color:var(--tinta);font-size:14px">
+            {e(b['resumo'])}</p>
+          {crits}
+          <div class="rot" style="color:var(--verde);margin-top:12px">A favor</div>
+          <p style="margin:2px 0 8px;font-size:13px">{e(b['a_favor'])}</p>
+          <div class="rot" style="color:var(--alerta)">Contra</div>
+          <p style="margin:2px 0;font-size:13px">{e(b['contra'])}</p>
+          {aviso}</div>"""
+
     import json as _json
     combos = ""
     for slug, id_piso, id_borda, rotulo in COMBOS:
@@ -322,8 +351,29 @@ def main():
   </div>
 </div></section>
 
+<section><div class="env">
+  <h2>A borda: o que realmente muda</h2>
+  <p class="sub">A peça avança 2–3 cm sobre a lâmina da fibra e a esconde.
+     É a diferença entre piscina acabada e piscina montada.</p>
+  <div class="grade g2">
+    <figure style="margin:0"><img src="{b64('borda_antes.jpg', 900)}"
+      alt="Hoje: a fibra exposta" style="border-radius:6px" loading="lazy">
+      <figcaption class="mat-fam" style="color:var(--alerta);font-weight:600">
+        HOJE — a borda é a própria fibra</figcaption></figure>
+    <figure style="margin:0"><img src="{b64('borda_b-granito-branco.jpg', 900)}"
+      alt="Com peça de borda em granito" style="border-radius:6px" loading="lazy">
+      <figcaption class="mat-fam" style="color:var(--verde);font-weight:600">
+        COM PEÇA DE BORDA em granito</figcaption></figure>
+  </div>
+  <h3 style="margin:34px 0 6px;font-size:19px">Seis materiais para a peça de
+     borda</h3>
+  <p class="sub">Mesmo piso em todas as imagens: só a borda muda. Preços por
+     metro linear — são ~18 m no perímetro desta piscina.</p>
+  <div class="grade g3">{bordas_html}</div>
+</div></section>
+
 <section style="padding-bottom:0"><div class="env">
-  <h2>Os dez materiais</h2>
+  <h2>Os dez materiais de piso</h2>
   <p class="sub">Cinco quadrados cheios é sempre o melhor. Em «Custo baixo»,
      cinco significa mais barato.</p>
 </div></section>

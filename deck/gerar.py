@@ -26,6 +26,13 @@ BORDA_ALTERNATIVA = "granito-cinza-andorinha"
 # de ceu e de casa, para a cor do piso ocupar o maximo do quadro.
 RECORTE_MINI = (330, 430, 1290, 1150)
 
+# Recorte do close centrado no canto da piscina: e ali que a peca de borda
+# encontra a lamina de fibra, que e o assunto da secao da borda.
+RECORTE_BORDA = (170, 40, 1490, 830)
+
+# Piso mantido constante nas comparacoes de borda, para so a borda variar.
+PISO_NEUTRO = "granito-cinza-andorinha"
+
 # As tres combinacoes finalistas do slide de recomendacao.
 COMBOS = [
     ("equilibrio", "granito-branco-itaunas", "granito-branco-itaunas",
@@ -216,6 +223,22 @@ def main():
 
         amostra(m).save(f"{SAIDA}/amostra_{mid}.jpg", quality=92)
         print(f"  {m['n']:2d}. {m['nome']}")
+
+    # ---- A borda como assunto proprio -------------------------------
+    # Piso mantido igual em todas: so a peca de borda muda, senao a
+    # comparacao mistura duas variaveis.
+    print("bordas...")
+    neutro = por_id[PISO_NEUTRO]
+    Image.fromarray(M.compoe(cenas["close"], neutro, neutro)) \
+        .crop(RECORTE_BORDA).save(f"{SAIDA}/borda_referencia.jpg", quality=90)
+    Image.open(M.caminho(M.CENAS["close"]["foto"])).convert("RGB") \
+        .crop(RECORTE_BORDA).save(f"{SAIDA}/borda_antes.jpg", quality=90)
+
+    for b in M.carrega_bordas():
+        img = Image.fromarray(M.compoe(cenas["close"], neutro, b))
+        img.crop(RECORTE_BORDA).save(f"{SAIDA}/borda_{b['id']}.jpg", quality=90)
+        amostra(b, metros=1.1).save(f"{SAIDA}/amostra_{b['id']}.jpg", quality=92)
+        print(f"  {b['n']}. {b['nome']}")
 
     print("combinacoes finalistas...")
     for slug, id_piso, id_borda, rotulo in COMBOS:

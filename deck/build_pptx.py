@@ -99,6 +99,22 @@ def rodape(slide, texto_):
     caixa(slide, 0.55, A - 0.42, 12.2, 0.3, texto_, 8.5, SUAVE)
 
 
+def salva(prs, destino):
+    """Salva o PPTX. Se o arquivo estiver aberto no PowerPoint o Windows
+    trava a escrita -- nesse caso grava ao lado com sufixo, em vez de
+    perder a geracao inteira."""
+    try:
+        prs.save(destino)
+        return destino
+    except PermissionError:
+        base, ext = os.path.splitext(destino)
+        alt = f"{base} (novo){ext}"
+        prs.save(alt)
+        print("AVISO: o arquivo original esta aberto no PowerPoint.")
+        print("       Feche-o e renomeie, ou rode de novo com ele fechado.")
+        return alt
+
+
 # ---------------------------------------------------------------- slides
 
 
@@ -186,6 +202,107 @@ def s03_o_que_muda(prs):
         caixa(s, cx + 0.22, cy + 0.12, 3.5, 0.42, tit, 10.5, TINTA, True,
               entre=1.1)
         caixa(s, cx + 0.22, cy + 0.58, 3.5, 0.32, desc, 9, SUAVE, entre=1.1)
+
+
+CRIT_BORDA = [
+    ("aderencia", "Antiderrapante"),
+    ("termico", "Não esquenta"),
+    ("cloro", "Resiste ao cloro"),
+    ("sob_medida", "Peça sob medida"),
+    ("custo", "Custo baixo"),
+]
+
+
+def s_borda_intro(prs):
+    s = novo(prs)
+    caixa(s, 0.55, 0.38, 10, 0.45, "A borda: o que realmente muda", 26, TINTA,
+          True, TIT)
+    caixa(s, 0.55, 0.93, 12.2, 0.3,
+          "A peça avança 2–3 cm sobre a lâmina da fibra e a esconde. É a "
+          "diferença entre piscina acabada e piscina montada.", 12, SUAVE)
+
+    for i, (arq, rot) in enumerate([
+            ("borda_antes.jpg", "HOJE — a borda é a própria fibra"),
+            ("borda_b-granito-branco.jpg", "COM PEÇA DE BORDA em granito")]):
+        cx = 0.55 + i * 6.24
+        figura(s, arq, cx, 1.42, 5.99)
+        cor = ALERTA if i == 0 else VERDE
+        bloco(s, cx, 5.05, 5.99, 0.32, cor)
+        caixa(s, cx + 0.15, 5.11, 5.7, 0.28, rot, 10,
+              RGBColor(0xFF, 0xFF, 0xFF), True)
+
+    itens = [("A peça esconde a lâmina de fibra",
+              "Hoje o rebordo azul fica à mostra e sobra concreto bruto "
+              "até a pedra."),
+             ("A borda é comprada por metro linear",
+              "São ~18 m no perímetro desta piscina, e a peça é cortada "
+              "sob medida."),
+             ("Pode ser de material diferente do piso",
+              "É comum e recomendável: a borda pede peça boleada com "
+              "pingadeira.")]
+    for i, (tit, desc) in enumerate(itens):
+        cx = 0.55 + i * 4.13
+        bloco(s, cx, 5.62, 3.88, 1.35, CREME)
+        bloco(s, cx, 5.62, 0.045, 1.35, ACENTO)
+        caixa(s, cx + 0.22, 5.78, 3.5, 0.4, tit, 11, TINTA, True, entre=1.1)
+        caixa(s, cx + 0.22, 6.28, 3.5, 0.6, desc, 9.5, SUAVE, entre=1.15)
+
+
+def s_borda(prs, b):
+    s = novo(prs)
+    bloco(s, 0, 0, L, 0.92, CREME)
+    bloco(s, 0, 0.92, L, 0.02, ACENTO)
+    caixa(s, 0.55, 0.16, 0.7, 0.5, str(b["n"]), 26, ACENTO, True, TIT)
+    caixa(s, 1.25, 0.13, 7.6, 0.4, b["nome"], 21, TINTA, True, TIT)
+    caixa(s, 1.25, 0.575, 7.6, 0.28, b["subtitulo"], 10.5, SUAVE)
+    caixa(s, 9.3, 0.17, 3.5, 0.3,
+          f"R$ {b['preco_ml'][0]}–{b['preco_ml'][1]} / m linear",
+          12, TINTA, True, align=PP_ALIGN.RIGHT)
+    caixa(s, 9.3, 0.52, 3.5, 0.3, "~18 m no perímetro · a confirmar", 8.5,
+          SUAVE, align=PP_ALIGN.RIGHT)
+
+    figura(s, f"borda_{b['id']}.jpg", 0.45, 1.2, 7.55)
+    caixa(s, 0.45, 5.82, 7.55, 0.25,
+          "Piso mantido igual em todas as opções — só a borda muda.",
+          9, SUAVE, italico=True)
+
+    x = 8.3
+    caixa(s, x, 1.2, 4.55, 0.7, b["resumo"], 12, TINTA, True, entre=1.2)
+    for i, (chave, rot) in enumerate(CRIT_BORDA):
+        cy = 2.15 + i * 0.28
+        caixa(s, x, cy, 1.85, 0.24, rot, 10, TINTA)
+        pips(s, x + 1.95, cy + 0.05, b["criterios"][chave],
+             largura=0.15, alt=0.1, gap=0.032)
+
+    caixa(s, x, 3.72, 4.55, 0.22, "A FAVOR", 8.5, VERDE, True)
+    caixa(s, x, 3.94, 4.55, 0.9, b["a_favor"], 9.5, SUAVE, entre=1.15)
+    caixa(s, x, 4.95, 4.55, 0.22, "CONTRA", 8.5, ALERTA, True)
+    caixa(s, x, 5.17, 4.55, 0.9, b["contra"], 9.5, SUAVE, entre=1.15)
+
+    if b["alerta"]:
+        bloco(s, x, 6.2, 4.55, 0.85, ALERTA)
+        caixa(s, x + 0.18, 6.32, 4.2, 0.65, "▲  " + b["alerta"], 9,
+              RGBColor(0xFF, 0xFF, 0xFF), True, entre=1.15)
+
+
+def s_borda_grade(prs, bordas):
+    s = novo(prs)
+    caixa(s, 0.55, 0.38, 10, 0.45, "As seis bordas lado a lado", 26, TINTA,
+          True, TIT)
+    caixa(s, 0.55, 0.93, 12.2, 0.3,
+          "Mesma vista, mesmo piso, mesma luz. Só a peça de borda muda.",
+          11, SUAVE)
+    lw, gap = 3.95, 0.19
+    for i, b in enumerate(bordas):
+        cx = 0.55 + (i % 3) * (lw + gap)
+        cy = 1.45 + (i // 3) * 2.82
+        figura(s, f"borda_{b['id']}.jpg", cx, cy, lw)
+        caixa(s, cx, cy + 2.42, lw, 0.24, f"{b['n']}. {b['nome']}", 10.5,
+              TINTA, True)
+        caixa(s, cx, cy + 2.66, lw, 0.22,
+              f"R$ {b['preco_ml'][0]}–{b['preco_ml'][1]}/m linear", 9, SUAVE)
+    rodape(s, "Preços indicativos da peça boleada com pingadeira, instalada, "
+              "para a Grande Vitória/ES. A confirmar com marmoraria.")
 
 
 def s04_como_ler(prs):
@@ -511,9 +628,16 @@ def main():
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(L), Inches(A)
 
+    bordas = M.carrega_bordas()
+
     s01_capa(prs)
     s02_diagnostico(prs)
     s03_o_que_muda(prs)
+    # A borda vem antes do piso: e o defeito principal do diagnostico.
+    s_borda_intro(prs)
+    for b in bordas:
+        s_borda(prs, b)
+    s_borda_grade(prs, bordas)
     s04_como_ler(prs)
     for m in mats:
         s_material(prs, m, por_id)
@@ -522,9 +646,9 @@ def main():
     s17_recomendacao(prs, por_id)
     s18_proximos(prs)
 
-    prs.save(DESTINO)
+    destino = salva(prs, DESTINO)
     print(f"{len(prs.slides.__iter__.__self__._sldIdLst)} slides")
-    print(DESTINO)
+    print(destino)
 
 
 if __name__ == "__main__":
