@@ -8,7 +8,7 @@
 
 ## 1. Objetivo
 
-Produzir uma apresentação de 18 slides que ajude o proprietário a escolher o material de **borda e calçada** da piscina menor, comparando 10 opções aplicadas sobre fotos reais do local.
+Produzir uma apresentação que ajude o proprietário a escolher o material de **borda e calçada** da piscina menor, comparando 10 opções aplicadas sobre fotos reais do local.
 
 O deck é uma ferramenta de decisão e de contratação: além de comparar estética, ele documenta o diagnóstico do estado atual e entrega um checklist técnico para levar ao marmorista e ao pedreiro.
 
@@ -142,7 +142,9 @@ Cada um vira uma linha ilustrada no corte e uma pergunta no checklist de contrat
 
 ---
 
-## 7. Estrutura do deck — 18 slides
+## 7. Estrutura do deck — 18 slides na primeira versão
+
+> Passaram a 26 com a seção da borda. Ver seção 12.
 
 | # | Slide | Conteúdo |
 |---|---|---|
