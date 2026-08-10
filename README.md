@@ -12,13 +12,10 @@ nem recalculam sombra.
 
 | Arquivo | Para quê |
 |---|---|
-| `Piscina menor - materiais de borda e calcada (novo).pptx` | **26 slides, versão atual.** Para levar impresso ao marmorista |
+| `Piscina menor - materiais de borda e calcada.pptx` | **26 slides.** Para levar impresso ao marmorista |
 | `deck/palestra.html` | Apresentação de tela cheia, para projetor. Setas navegam, `G` abre o mapa, `F` tela cheia |
 | `deck/piscina-menor.html` | Página de leitura, rola no celular. Tem comparador interativo dos 10 materiais |
 | `docs/superpowers/specs/` | O spec: diagnóstico, decisões, o que foi verificado e o que deu errado no caminho |
-
-> O arquivo `...calcada.pptx` (sem "novo") é a versão anterior, de 18 slides,
-> ainda sem a seção da borda. Pode apagar quando fechar o PowerPoint.
 
 ## Como regerar
 
