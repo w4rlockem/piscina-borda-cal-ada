@@ -2,13 +2,13 @@
 
 **Data:** 2026-08-10
 **Local:** Ponta da Fruta, Vila Velha — ES
-**Status:** design aprovado, aguardando plano de implementação
+**Status:** implementado e verificado — entregue em PPTX (principal) e página web
 
 ---
 
 ## 1. Objetivo
 
-Produzir uma apresentação navegável que ajude o proprietário a escolher o material de **borda e calçada** da piscina menor, comparando 10 opções aplicadas sobre fotos reais do local.
+Produzir uma apresentação de 18 slides que ajude o proprietário a escolher o material de **borda e calçada** da piscina menor, comparando 10 opções aplicadas sobre fotos reais do local.
 
 O deck é uma ferramenta de decisão e de contratação: além de comparar estética, ele documenta o diagnóstico do estado atual e entrega um checklist técnico para levar ao marmorista e ao pedreiro.
 
@@ -165,21 +165,38 @@ Cada um vira uma linha ilustrada no corte e uma pergunta no checklist de contrat
 
 ## 8. Arquitetura técnica
 
+### Formato de entrega
+
+**Decisão revista durante a implementação.** O formato aprovado no design era página web. O proprietário depois pediu **PowerPoint**, e o PPTX passou a ser a entrega principal.
+
+Duas capacidades não sobrevivem ao PPTX e foram degradadas conscientemente:
+
+| Recurso | Na web | No PPTX |
+|---|---|---|
+| Comparador interativo | Clique troca o material na foto | Contact sheet estático com os 10 |
+| Tabela comparativa | Ordenável por qualquer critério | Ordenada por custo, fixa |
+
+A página web continua sendo gerada: as montagens são renderizadas uma vez e alimentam os dois formatos, então o HTML custa apenas o gerador que o monta. É lá que o comparador interativo sobrevive.
+
 ### Arquivos
 
 ```
 piscinas/
   fotos/                      6 originais, intocadas
   deck/
-    template.html             a página, com marcadores de imagem
     materiais.json            os 10 materiais: paleta, textura, critérios, notas
-    mascaras.svg              polígonos traçados sobre cada foto
-    build.py                  injeta as fotos em base64 → saída final
-    piscina-menor.html        gerado; é o publicado
+    montagem.py               segmentação, homografia, textura, composição
+    gerar.py                  produz as 46 imagens em deck/render/
+    build_pptx.py             monta o PPTX de 18 slides
+    build_html.py             monta a página web autocontida
+    render/                   imagens geradas (entrada dos dois montadores)
+    work/                     intermediários de conferência (fora do git)
+  Piscina menor - materiais de borda e calcada.pptx
+  deck/piscina-menor.html
   docs/superpowers/specs/     este documento
 ```
 
-**Por que `materiais.json` é separado:** é onde as alterações do proprietário vão acontecer. Trocar um granito vira editar uma entrada de dados — e os 10 slides, a tabela e o comparador se atualizam juntos, sem risco de divergirem. `build.py` existe porque 1,7 MB de base64 não se escreve à mão.
+**Por que `materiais.json` é separado:** é onde as alterações do proprietário vão acontecer. Trocar um granito vira editar uma entrada de dados — e os 10 slides, a tabela, o comparador e a página web se atualizam juntos, sem risco de divergirem.
 
 ### As três fotos usadas
 
@@ -191,24 +208,32 @@ piscinas/
 
 As outras 3 permanecem no repositório sem uso no deck.
 
-### As três camadas da montagem
+### Como a montagem é feita
 
-1. **Máscara** — polígono da calçada traçado à mão em cada foto, recortado em volta de vasos, arbustos, cadeira e da própria piscina. Na foto do close, a **borda é uma região separada do piso**, porque podem receber materiais diferentes.
-2. **Textura em perspectiva** — o padrão de placas recebe transformação 3D para as juntas convergirem no ponto de fuga da foto. É o que separa "material aplicado" de "papel de parede colado por cima".
-3. **Mesclagem por luminância** — textura em `multiply` sobre a foto original, para que sombra da mangueira, brilho do sol e variação de luz do piso real atravessem o material novo.
+**Simplificação adotada na implementação:** o design previa renderizar no navegador com máscaras SVG e transformações CSS. Fazer a composição direto em numpy se mostrou mais preciso e removeu o navegador do pipeline. As imagens resultantes alimentam PPTX e HTML igualmente.
 
-**Consequência de arquitetura:** o custo escala com o número de **fotos**, não de materiais. Traçada a máscara, os 10 materiais são troca de textura. É por isso que 2 bases de montagem é o ponto certo de esforço.
+1. **Máscara — por cor, não à mão.** A pedra São Tomé é bege (R ≥ G ≥ B), a grama é verde e a água é ciano: separar por relação entre canais é mais confiável que traçar polígono a olho. Na panorâmica a calçada é uma ilha cercada de grama, e a segmentação por cor a isola bem. No close a calçada ocupa o quadro inteiro, então o robusto é o inverso — recortar a piscina e ficar com todo o resto.
 
-### Restrições da plataforma
+2. **Perspectiva por homografia.** A piscina é um retângulo conhecido de 6,0 × 3,0 m deitado no mesmo plano da calçada. Achando seus quatro cantos (envoltória convexa da máscara de água, quadrilátero de área máxima) sai a correspondência plano ↔ foto. Cada pixel vira uma coordenada em metros, a paginação é desenhada em metros, e a convergência no ponto de fuga sai de graça — a placa de 40 cm tem 40 cm de verdade.
 
-- Página autocontida: todo CSS, JS e imagem inline. Sem recurso externo.
-- Limite de 16 MB. As 3 fotos dão ~1,7 MB em base64 — folgado.
-- Responsiva: precisa funcionar em largura de celular, porque será mostrada no local.
-- Publicada como Artifact — link privado, atualizável no mesmo endereço.
+   No close a piscina aparece só parcialmente e uma reta isolada não define ponto de fuga, então a homografia foi estimada por iteração visual: canto da piscina mais as duas arestas visíveis dão três pontos, e o quarto foi ajustado até a paginação renderizada acompanhar as juntas da São Tomé já presentes na foto.
+
+3. **Borda derivada em metros, não em pixels.** A faixa de borda é o conjunto de pontos da calçada a menos de 35 cm do retângulo da piscina, medido no plano. Distância de Chebyshev, não euclidiana: peça de granito é cortada em meia-esquadria e o canto externo sai vivo, não arredondado.
+
+4. **Iluminação extraída da foto.** Campo de luz = luminância desfocada dentro da máscara, normalizada e multiplicada pelo material novo. O sigma precisa ser maior que as feições do piso antigo — com sigma pequeno, junta e mancha da São Tomé sobrevivem ao desfoque e reaparecem como borrões escuros sob o material novo (aconteceu no close, corrigido com sigma 75 contra 18 da panorâmica).
+
+**Consequência de arquitetura:** o custo escala com o número de **fotos**, não de materiais. Definida a máscara e a homografia, os 10 materiais são troca de textura.
+
+### Restrições da página web
+
+- Autocontida: CSS, JS e imagens inline, sem recurso externo.
+- Imagens reduzidas para web (1200 px) e comparador reaproveitando as imagens já no DOM, em vez de embutir uma segunda cópia em base64: 28 MB → 7,5 MB.
+- `<meta charset="utf-8">` obrigatório — sem ele o navegador assume windows-1252 em arquivo local e todo acento vira mojibake.
+- Responsiva e legível em tema claro e escuro.
 
 ### Ambiente verificado
 
-Python 3.12.10, Node 24.19.0, git 2.55.0. Repositório inicializado em `piscinas/` (branch `master`).
+Python 3.12.10, Node 24.19.0, git 2.55.0, python-pptx 1.0.2, Pillow, numpy, scipy. PowerPoint instalado — usado via COM para exportar os slides em PNG e conferi-los visualmente.
 
 ---
 
@@ -223,18 +248,33 @@ Aparecem no próprio deck, não apenas aqui:
 
 ---
 
-## 10. Verificação antes da entrega
+## 10. Verificação executada
 
-Executar e confirmar antes de passar o link ao proprietário:
+| # | Verificação | Resultado |
+|---|---|---|
+| 1 | `gerar.py` roda e produz as 46 imagens | ✅ |
+| 2 | `build_pptx.py` gera 18 slides | ✅ |
+| 3 | Os 18 slides exportados em PNG e conferidos um a um | ✅ |
+| 4 | Nenhuma textura vaza sobre piscina, vasos, arbustos ou grama | ✅ |
+| 5 | Nenhum texto cortado pela borda do slide | ✅ após correção da zona inferior dos slides de material |
+| 6 | Perspectiva conferida contra as juntas reais da foto | ✅ |
+| 7 | `build_html.py` gera a página, 7,5 MB | ✅ |
+| 8 | Comparador troca os 10 materiais ao clique | ✅ |
+| 9 | Acentuação correta na página | ✅ após incluir `<meta charset>` |
+| 10 | Sem erro de console e sem scroll horizontal (desktop e 390 px) | ✅ |
+| 11 | Os 10 materiais batem com 10 slides, 10 linhas de tabela e 10 opções | ✅ |
 
-1. `build.py` roda sem erro e gera `piscina-menor.html`
-2. Os 18 slides abrem e navegam
-3. O comparador troca os 10 materiais na panorâmica
-4. Nenhuma textura vaza da máscara sobre piscina, vasos, arbustos ou grama
-5. A tabela do slide 15 ordena por cada um dos 4 critérios
-6. Layout íntegro em largura de celular
-7. Página legível em tema claro e escuro
-8. Os 10 materiais do `materiais.json` batem com os 10 slides e as 10 linhas da tabela
+### Defeitos encontrados e corrigidos durante a verificação
+
+- Variação de tom entre placas exagerada: a calçada virava tabuleiro de xadrez.
+- Canto externo da borda arredondado, quando peça cortada em meia-esquadria sai com canto vivo.
+- Borrões escuros no close: campo de luz com sigma pequeno demais preservava as juntas antigas.
+- Buracos na máscara do close deixando aparecer a pedra original.
+- Grão da borda esticado por usar coordenadas do perímetro em vez das de mundo.
+- Desenho dos perfis sobrepondo os cartões no slide 3.
+- Texto "A favor / Contra" e legenda da amostra cortados pela borda inferior.
+- Página de 28 MB por duplicar as fotos em base64 no comparador.
+- Mojibake por falta de `<meta charset="utf-8">`.
 
 ---
 

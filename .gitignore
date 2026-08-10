@@ -1,0 +1,7 @@
+# Intermediários de conferência: grades de coordenada, visualizações de
+# máscara, testes de perspectiva e os slides exportados em PNG.
+deck/work/
+
+# Cache do Python
+__pycache__/
+*.pyc
