@@ -54,7 +54,6 @@ CSS = """
   --linha:#e2dfd9; --alerta:#a8382a; --verde:#3f6b46; --ambar:#b57a1f;
   --fundo:#ffffff; --cartao:#ffffff; --escuro:#122a33;
 }
-:root:not([data-theme="light"]){}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --tinta:#ececef; --suave:#a0a0aa; --acento:#63b8cc; --creme:#1c1f22;
@@ -135,7 +134,9 @@ tbody tr:nth-child(even){background:var(--creme)}
   background:transparent;border-radius:5px;cursor:pointer;text-align:left;
   font:inherit;font-size:13.5px;color:var(--tinta);width:100%}
 .opt:hover{background:var(--creme)}
+.opt:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
 .opt[aria-pressed="true"]{background:var(--acento);color:#fff}
+.opt[aria-pressed="true"] small{opacity:.9}
 .opt .sw{width:34px;height:26px;border-radius:3px;flex:none;
   border:1px solid rgba(0,0,0,.15);background-size:cover}
 .opt b{font-weight:600}
