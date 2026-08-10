@@ -148,6 +148,20 @@ td:nth-child(2){text-align:left;font-weight:600}
 #mapa button:hover,#mapa button:focus-visible{border-color:var(--agua);
   outline:none}
 #mapa button i{display:block;padding:7px 9px;font-style:normal}
+
+/* Celular em pe: o palco 16:9 cabe numa faixa de ~220 px e o corpo de
+   texto cai para menos de 6 px. Em vez de entregar isso ilegivel, pede
+   para girar -- deitado a escala dobra e o slide fica utilizavel. */
+#girar{display:none}
+@media (orientation:portrait) and (max-width:820px){
+  #palco,#barra,#conta,#ajuda{display:none}
+  #girar{display:flex;position:fixed;inset:0;z-index:20;padding:34px;
+    flex-direction:column;align-items:center;justify-content:center;
+    text-align:center;background:var(--fundo);gap:18px}
+}
+#girar .icone{font-size:46px;line-height:1}
+#girar strong{font-family:var(--serif);font-size:25px;font-weight:700}
+#girar span{font-size:15px;color:var(--meio);max-width:30ch;line-height:1.5}
 """
 
 JS = """
@@ -549,6 +563,12 @@ def main():
 <div id="barra"></div>
 <div id="conta"></div>
 <div id="ajuda">← → navegar · G mapa · F tela cheia</div>
+<div id="girar">
+  <div class="icone">📱↻</div>
+  <strong>Gire o telefone</strong>
+  <span>Os slides são 16:9. Deitado eles ocupam a tela inteira; em pé
+    ficariam pequenos demais para ler.</span>
+</div>
 <div id="mapa">{mapa}</div>
 <script type="application/json" id="dados">{json.dumps(dados)}</script>
 <script>{JS}</script>
