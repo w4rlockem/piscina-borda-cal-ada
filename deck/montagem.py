@@ -205,6 +205,14 @@ def monta_cena(nome):
     Hinv = np.linalg.inv(H)
     U, V = coords_mundo(Hinv)
 
+    # Quantos metros cada pixel cobre. Longe da camera um pixel abrange
+    # varios centimetros de piso; desenhar veio e junta nessa escala produz
+    # moire. Serve para atenuar o detalhe conforme a distancia, que e o que
+    # um mipmap faria.
+    dUy, dUx = np.gradient(U)
+    dVy, dVx = np.gradient(V)
+    passo_m = np.sqrt(dUx ** 2 + dUy ** 2 + dVx ** 2 + dVy ** 2)
+
     # Distancia com sinal ate a casca da piscina, em metros: negativa dentro,
     # positiva na calcada. O canto e ARREDONDADO -- piscina de fibra sai da
     # forma com raio, e a peca de borda e cortada acompanhando essa curva.
@@ -249,6 +257,7 @@ def monta_cena(nome):
         "azul": azul,
         "U": U,
         "V": V,
+        "passo_m": passo_m,
         "d_sinal": d_sinal,
         "ao_longo": ao_longo,
         "borda_m": cfg["borda_m"],
@@ -320,10 +329,27 @@ def grao(tipo, U, V, semente):
 # ---------------------------------------------------------------- textura
 
 
-def textura(mat, U, V, semente=0):
+def _nitidez(passo_m, feicao):
+    """Quanto do detalhe de tamanho `feicao` ainda cabe num pixel.
+
+    1 quando o pixel e bem menor que a feicao, caindo a 0 quando a feicao
+    fica menor que o pixel. Sem isto, veio e junta viram moire ao fundo.
+    """
+    if passo_m is None:
+        return 1.0
+    return np.clip(feicao / np.maximum(passo_m * 2.2, 1e-6), 0.0, 1.0)
+
+
+def textura(mat, U, V, semente=0, passo_m=None):
     """Cor RGB do material nas coordenadas de mundo dadas."""
     tw, th = mat["placa_m"]
     junta = mat["junta_mm"] / 1000.0
+
+    # Desencontro entre fiadas. Regua amadeirada assentada em grade alinhada
+    # denuncia a montagem na hora -- na obra ela sempre sai defasada.
+    desenc = mat.get("desencontro", 0.0)
+    if desenc:
+        U = U + np.floor(V / th) * desenc * tw
 
     iu = np.floor(U / tw)
     iv = np.floor(V / th)
@@ -338,19 +364,22 @@ def textura(mat, U, V, semente=0):
     var = (_hash01(iu.astype(np.int64), iv.astype(np.int64), 91 + semente) - 0.5)
     cor = cor + (var * mat["cor_variacao"] * 0.7)[..., None]
 
-    # Grao interno.
+    # Grao interno. Madeira pede mais que pedra: numa regua o veio e o
+    # assunto principal da peca, num granito e so textura de fundo.
     g = grao(mat["grao"], U, V, 17 + semente)
-    cor = cor * (1 + g * 0.16)[..., None]
+    forca = mat.get("grao_forca", 0.16) * _nitidez(passo_m, 0.030)
+    cor = cor * (1 + g * forca)[..., None]
 
-    # Junta de assentamento.
+    # Junta de assentamento, esmaecida quando fica menor que o pixel.
     du = np.minimum(fu, 1 - fu) * tw
     dv = np.minimum(fv, 1 - fv) * th
-    na_junta = (du < junta / 2) | (dv < junta / 2)
+    na_junta = ((du < junta / 2) | (dv < junta / 2)).astype(float)
+    na_junta = na_junta * _nitidez(passo_m, junta)
     cj = np.array(mat["cor_junta"], float)
-    cor = np.where(na_junta[..., None], cj[None, None, :], cor)
+    cor = cor * (1 - na_junta)[..., None] + cj * na_junta[..., None]
 
     # Leve escurecimento junto a junta, que da relevo a peca.
-    prox = np.exp(-np.minimum(du, dv) / 0.012)
+    prox = np.exp(-np.minimum(du, dv) / 0.012) * _nitidez(passo_m, 0.024)
     cor = cor * (1 - 0.10 * prox)[..., None]
 
     return np.clip(cor, 0, 255)
@@ -375,7 +404,7 @@ def textura_borda(mat, cena, semente=3):
     # Grao nas coordenadas de mundo, nao nas do perimetro: usar (s, d)
     # estica o cristal do granito ao longo da faixa.
     g = grao(mat["grao"], cena["U"], cena["V"], 31 + semente)
-    cor = cor * (1 + g * 0.14)[..., None]
+    cor = cor * (1 + g * 0.14 * _nitidez(cena["passo_m"], 0.030))[..., None]
 
     ds = np.minimum(s / passo - iv, 1 - (s / passo - iv)) * passo
     na_junta = (ds < junta / 2) | (d > largura - junta / 2)
@@ -430,7 +459,8 @@ def compoe(cena, mat_piso, mat_borda):
     luz_piso = campo_de_luz(foto, cena["piso"], sigma, faixa)
     luz_borda = campo_de_luz(foto, cena["borda"], sigma, faixa)
 
-    tex_piso = textura(mat_piso, cena["U"], cena["V"])
+    tex_piso = textura(mat_piso, cena["U"], cena["V"],
+                       passo_m=cena["passo_m"])
     tex_borda = textura_borda(mat_borda, cena)
 
     novo = np.where(cena["borda"][..., None],

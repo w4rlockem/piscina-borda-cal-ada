@@ -224,9 +224,9 @@
       "familia": "Porcelanato",
       "subtitulo": "Régua 20×120, antiderrapante",
       "cor_base": [166, 119, 74],
-      "cor_variacao": 22,
+      "cor_variacao": 36,
       "grao": "madeira",
-      "placa_m": [0.2, 1.2],
+      "placa_m": [1.2, 0.2],
       "junta_mm": 4,
       "cor_junta": [134, 96, 60],
       "borda": "limitado",
@@ -242,7 +242,9 @@
       "resumo": "O visual de deck de madeira sem a manutenção da madeira.",
       "a_favor": "Aquece visualmente a área e combina com a madeira do varandão e da pérgola, sem lixar nem envernizar nunca.",
       "contra": "Esquenta como porcelanato, não como madeira. Em régua longa o assentamento em área externa é mais trabalhoso.",
-      "alerta": null
+      "alerta": null,
+      "grao_forca": 0.26,
+      "desencontro": 0.34
     },
     {
       "id": "deck-madeira",
@@ -269,7 +271,37 @@
       "resumo": "O mais agradável ao pé descalço e o que mais cobra manutenção.",
       "a_favor": "Toque quente e confortável mesmo no sol. Absorve bem o desnível do terreno e combina com a madeira já presente na casa.",
       "contra": "Sol pleno mais maresia é a pior combinação possível para madeira: exige lixamento e óleo pelo menos uma vez por ano, e a estrutura de apoio sofre.",
-      "alerta": "Não serve como borda de piscina de fibra. Se escolhido, a borda tem de ser de outro material, tipicamente granito."
+      "alerta": "Não serve como borda de piscina de fibra. Se escolhido, a borda tem de ser de outro material, tipicamente granito.",
+      "grao_forca": 0.26
+    },
+    {
+      "id": "porcelanato-amadeirado-escuro",
+      "n": 11,
+      "nome": "Porcelanato amadeirado escuro",
+      "familia": "Porcelanato",
+      "subtitulo": "Régua 20×120 assentada em desencontro, antiderrapante",
+      "cor_base": [84, 62, 49],
+      "cor_variacao": 44,
+      "grao": "madeira",
+      "placa_m": [1.2, 0.2],
+      "junta_mm": 3,
+      "cor_junta": [52, 37, 27],
+      "desencontro": 0.34,
+      "borda": "nao",
+      "piso": "sim",
+      "criterios": {
+        "aderencia": 4,
+        "termico": 1,
+        "custo": 3,
+        "manutencao": 5,
+        "maresia": 5
+      },
+      "preco_m2": [210, 340],
+      "resumo": "O escuro que faz o mármore branco e a água azul saltarem. É o contraste mais forte da lista.",
+      "a_favor": "Emoldura a piscina: contra o piso escuro, a borda branca vira o desenho da área e a água parece mais azul. Não mancha, não cria limo, ignora maresia.",
+      "contra": "Piso escuro em sol pleno é o que mais esquenta de toda a lista, mais até que o granito preto, porque a régua acumula calor na superfície inteira.",
+      "alerta": "Sob sol de meio-dia sem sombra alguma, este piso fica quente demais para pé descalço. Lindo em foto, cobra caro no uso.",
+      "grao_forca": 0.3
     }
   ],
   "_nota_bordas": "Materiais para a peca de borda. Notas de 1 a 5, 5 sempre melhor. Precos em R$ por metro linear da peca boleada com pingadeira, instalada, faixas indicativas para a Grande Vitoria/ES a confirmar com marmoraria. O perimetro estimado da piscina e ~18 m.",
