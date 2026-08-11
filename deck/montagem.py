@@ -119,6 +119,15 @@ def cantos_piscina(mask):
 # Piscina de fibra: 6,0 x 3,0 m (a confirmar com trena).
 PISCINA = (6.0, 3.0)
 
+# Raio do canto da casca de fibra. Medido por proporcao nas fotos do local
+# e coerente com os exemplos de fabricante enviados pelo proprietario.
+CANTO_R = 0.18
+
+# Largura do nariz boleado da peca de borda -- a parte curva que encara a
+# agua. E nela que mora a leitura de volume: o topo pega o sol, a curva
+# escurece descendo ate a lamina.
+NARIZ_M = 0.055
+
 # No close a piscina aparece so parcialmente, entao a homografia nao pode
 # ser derivada dos 4 cantos como na panoramica.
 # A, B e C vem de regressao sobre o
@@ -137,12 +146,12 @@ CENAS = {
     "pano": {
         "foto": "fotos/WhatsApp Image 2026-08-10 at 14.04.25.jpeg",
         "y_min": 470,
-        "borda_m": 0.35,
+        "borda_m": 0.30,
         # A calcada e uma ilha cercada de grama: vale segmentar por cor.
         "modo_mascara": "cor",
         # Faixa da lamina de fibra a ser capeada pela peca de borda,
         # calibrada por conferencia visual ate o rebordo azul sumir.
-        "lamina_m": 0.22,
+        "lamina_m": 0.30,
         # As placas antigas sao pequenas em pixels; sigma menor ja as apaga.
         "sigma_luz": 18.0,
         "faixa_luz": (0.45, 1.32),
@@ -150,11 +159,11 @@ CENAS = {
     "close": {
         "foto": "fotos/WhatsApp Image 2026-08-10 at 14.04.24 (1).jpeg",
         "y_min": 0,
-        "borda_m": 0.38,
+        "borda_m": 0.26,
         # Aqui a calcada ocupa o quadro inteiro; o robusto e recortar a
         # piscina e ficar com todo o resto.
         "modo_mascara": "complemento",
-        "lamina_m": 0.26,
+        "lamina_m": 0.40,
         # Placas antigas enormes em pixels: sem sigma alto, as juntas e
         # manchas viram borroes escuros no material novo.
         "sigma_luz": 75.0,
@@ -196,21 +205,25 @@ def monta_cena(nome):
     Hinv = np.linalg.inv(H)
     U, V = coords_mundo(Hinv)
 
-    # Distancia, em metros, ate o retangulo da piscina.
+    # Distancia com sinal ate a casca da piscina, em metros: negativa dentro,
+    # positiva na calcada. O canto e ARREDONDADO -- piscina de fibra sai da
+    # forma com raio, e a peca de borda e cortada acompanhando essa curva.
+    # (Uma versao anterior usava distancia de Chebyshev, que produz canto
+    # vivo de meia-esquadria; isso vale para piscina de alvenaria retangular,
+    # nao para esta.)
     L, W = retangulo
-    dx = np.maximum(np.maximum(-U, 0), U - L)
-    dy = np.maximum(np.maximum(-V, 0), V - W)
-    # Chebyshev, nao euclidiana: a peca de borda e cortada em meia-esquadria
-    # e o canto externo sai vivo. Com hypot o canto sairia arredondado.
-    fora = np.maximum(dx, dy)
-
-    # Profundidade para dentro do retangulo. O retangulo foi ajustado a
-    # aresta externa da fibra, entao esta faixa interna e a lamina de fibra
-    # -- a peca de borda tem de cobri-la, senao o rebordo azul continua
-    # aparecendo e a montagem nega o proprio corte construtivo.
-    dentro = np.maximum(np.minimum(np.minimum(U, L - U),
-                                   np.minimum(V, W - V)), 0)
-    d_sinal = fora - dentro                  # positivo fora, negativo dentro
+    r = CANTO_R
+    if L > 1e5:                     # close: a piscina e o quadrante u,v > 0
+        qx, qy = r - U, r - V
+        # O termo `dentro` e indispensavel: sem ele a distancia satura em -r
+        # e o fundo inteiro da piscina passa a contar como faixa de borda.
+        d_sinal = (np.minimum(np.maximum(qx, qy), 0)
+                   + np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) - r)
+    else:                           # panoramica: retangulo de cantos redondos
+        qx = np.abs(U - L / 2) - (L / 2 - r)
+        qy = np.abs(V - W / 2) - (W / 2 - r)
+        d_sinal = (np.minimum(np.maximum(qx, qy), 0)
+                   + np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) - r)
 
     # Coordenada ao longo do perimetro, valida dos dois lados da aresta.
     perto_u = np.minimum(np.abs(U), np.abs(U - L))
@@ -233,6 +246,7 @@ def monta_cena(nome):
         "calcada": calcada,
         "piso": piso,
         "borda": borda,
+        "azul": azul,
         "U": U,
         "V": V,
         "d_sinal": d_sinal,
@@ -283,6 +297,17 @@ def grao(tipo, U, V, semente):
         g = (ruido(U, V, 12, 150, semente) - 0.5) * 1.30
         g += (ruido(U, V, 5, 40, semente + 3) - 0.5) * 0.75
         return g
+    if tipo == "marmore":               # veio sinuoso, nao listra reta
+        # Distorcer o dominio antes de amostrar e o que curva o veio. Ruido
+        # direto sai em listras paralelas, que nao se parecem com marmore.
+        # Distorcao fraca e de baixa frequencia: forte demais enrola o veio
+        # em espiral e o resultado vira papel marmorizado, nao pedra.
+        wx = (ruido(U, V, 1.1, 1.1, semente + 21) - 0.5) * 0.8
+        wy = (ruido(U, V, 1.1, 1.1, semente + 37) - 0.5) * 0.8
+        v = ruido(U + wx, V + wy, 2.6, 1.3, semente)
+        veio = np.exp(-np.abs(v - 0.5) * 30.0)      # cristas finas e esparsas
+        fino = (ruido(U, V, 45, 45, semente + 5) - 0.5) * 0.22
+        return -veio * 0.55 + 0.10 + fino
     if tipo == "mesclado":              # porcelanato: manchado suave
         return (ruido(U, V, 14, 14, semente) - 0.5) * 0.75
     if tipo == "madeira":               # fibra longa no sentido da regua
@@ -357,12 +382,23 @@ def textura_borda(mat, cena, semente=3):
     cj = np.array(mat["cor_junta"], float)
     cor = np.where(na_junta[..., None], cj[None, None, :], cor)
 
-    # Boleado: a face arredondada pega mais luz junto a lamina d'agua.
-    t = np.clip(d / largura, 0, 1)
-    realce = 1 + 0.20 * np.exp(-((t - 0.13) ** 2) / 0.010)
-    realce = realce * (1 - 0.12 * np.clip((t - 0.75) / 0.25, 0, 1))
-    cor = cor * realce[..., None]
+    # ---- volume da peca -------------------------------------------------
+    # Sem isto a borda vira uma faixa de cor chapada, que e exatamente o que
+    # denuncia a montagem como recorte. A peca tem duas faces: o nariz
+    # boleado, que encara a agua e recebe luz rasante, e o topo, que encara
+    # o ceu. Modelo de cilindro: a normal gira da lateral para a vertical ao
+    # longo do nariz.
+    a = np.clip(d / NARIZ_M, 0, 1)
+    lambert = 0.46 + 0.60 * np.sin(a * np.pi / 2)
+    especular = 0.26 * np.exp(-((a - 0.74) ** 2) / 0.014)
+    fator = np.where(d < NARIZ_M, lambert + especular, 1.0)
 
+    # Sombra de contato onde a peca encosta no piso: o mesmo desnivel de
+    # poucos milimetros que existe na obra real.
+    fim = largura - 0.06
+    fator = fator * (1 - 0.13 * np.clip((d - fim) / 0.06, 0, 1))
+
+    cor = cor * fator[..., None]
     return np.clip(cor, 0, 255)
 
 
@@ -400,6 +436,33 @@ def compoe(cena, mat_piso, mat_borda):
     novo = np.where(cena["borda"][..., None],
                     tex_borda * luz_borda[..., None],
                     tex_piso * luz_piso[..., None])
+
+    # ---- o que a peca faz ao redor dela ---------------------------------
+    # Uma peca de borda nao termina no proprio contorno: ela projeta sombra
+    # na agua, se reflete nela e escurece o piso onde encosta. Sem isso a
+    # pedra parece flutuar recortada sobre a foto.
+    d_sinal, lamina = cena["d_sinal"], cena["lamina_m"]
+
+    # Distancia para dentro da agua, a partir da lamina.
+    dentro_agua = np.maximum(-(d_sinal + lamina), 0)
+    agua = cena["azul"] & (d_sinal < -lamina)
+
+    # Sombra projetada: a linha escura logo abaixo do avanco da peca.
+    sombra = 1 - 0.46 * np.exp(-dentro_agua / 0.055)
+    # Reflexo da pedra na agua, logo depois da sombra.
+    brilho = 0.14 * np.exp(-((dentro_agua - 0.14) ** 2) / 0.012)
+    clara = np.array([235, 240, 242], float)
+
+    saida = np.where(agua[..., None],
+                     np.clip(saida * sombra[..., None]
+                             + clara * brilho[..., None], 0, 255),
+                     saida)
+
+    # Sombra de contato no piso, do lado de fora da peca.
+    fora_peca = d_sinal - cena["borda_m"]
+    contato = 1 - 0.16 * np.exp(-np.maximum(fora_peca, 0) / 0.045)
+    no_piso = cena["piso"] & (fora_peca >= 0)
+    novo = np.where(no_piso[..., None], novo * contato[..., None], novo)
 
     # Uniao com a borda, nao so a calcada: a faixa de borda invade a lamina
     # de fibra, que esta fora da mascara de calcada. Usar so a calcada aqui
